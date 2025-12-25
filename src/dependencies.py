@@ -54,12 +54,15 @@ async def init_resources() -> None:
         settings.database_url,
         pool_pre_ping=True,
     )
+    
+    
     _SessionLocal = async_sessionmaker(
         _engine,
         expire_on_commit=False,
         autoflush=False,
         autocommit=False,
     )
+
     log.info("database_initialized")
 
     # Redis (optional)

@@ -15,6 +15,7 @@ async def correlate_and_validate_node(state: TopologyState) -> TopologyState:
 
     For now, the logic is simple:
       - Use topology_data.paths and inventory_data.circuits as-is.
+      - Attach comment RAG results to the UI response.
       - Set total_circuits/impacted_circuits based on circuits length.
       - Mark validation as ok (no refinement).
 
@@ -31,6 +32,7 @@ async def correlate_and_validate_node(state: TopologyState) -> TopologyState:
     # Very simple stub correlation:
     paths: List[Dict[str, Any]] = topology_data.get("paths", [])  # should match TopologyPath schema
     circuits: List[Dict[str, Any]] = inventory_data.get("circuits", [])
+    comments: List[Dict[str, Any]] = comment_data.get("comments", []) or []
 
     total_circuits = len(circuits)
     # For now, assume all fetched circuits are "impacted"; later you can
@@ -40,8 +42,8 @@ async def correlate_and_validate_node(state: TopologyState) -> TopologyState:
     summary = {
         "total_circuits": total_circuits,
         "impacted_circuits": impacted_circuits,
-        "impacted_customers": 0,      # TODO: compute from inventory/hierarchy
-        "notes": "Stub summary; correlation logic not implemented yet.",
+        "impacted_customers": 0,  # TODO: compute from hierarchy/inventory
+        "notes": "Summary derived from topology, inventory, and comment RAG; impact logic is placeholder.",
     }
 
     warnings: List[str] = []
@@ -62,11 +64,10 @@ async def correlate_and_validate_node(state: TopologyState) -> TopologyState:
         "summary": summary,
         "paths": paths,
         "circuits": circuits,
+        "comments": comments,  # <- expose comment RAG results to UI
         "warnings": warnings,
         "partial": partial,
-        # Natural-language summary can be LLM-generated later.
         "natural_language_summary": "This is a placeholder summary for the topology query.",
-        # You can add more debug info under this key if needed.
         "debug_state": {},
     }
 

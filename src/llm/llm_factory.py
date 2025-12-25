@@ -17,23 +17,36 @@ except Exception:  # pragma: no cover
     Runnable = Any  # type: ignore
     RunnableSerializable = Any  # type: ignore
 
+
 # OpenAI / vLLM-compatible
 try:
-    from langchain_openai import ChatOpenAI  # type: ignore
+    from langchain_openai import ChatOpenAI, OpenAIEmbeddings  # type: ignore
 except Exception:  # pragma: no cover
     ChatOpenAI = None  # type: ignore
+    OpenAIEmbeddings = None  # type: ignore
 
 # AWS Bedrock
 try:
-    from langchain_aws import ChatBedrock  # type: ignore
+    from langchain_aws import ChatBedrock, BedrockEmbeddings  # type: ignore
 except Exception:  # pragma: no cover
     ChatBedrock = None  # type: ignore
+    BedrockEmbeddings = None  # type: ignore
 
 # GCP Vertex AI
 try:
-    from langchain_google_vertexai import ChatVertexAI  # type: ignore
+    from langchain_google_vertexai import ChatVertexAI, VertexAIEmbeddings  # type: ignore
 except Exception:  # pragma: no cover
     ChatVertexAI = None  # type: ignore
+    VertexAIEmbeddings = None  # type: ignore
+
+# HuggingFace (Local)
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings  # type: ignore
+except Exception:
+    try:
+        from langchain_community.embeddings import HuggingFaceEmbeddings  # type: ignore
+    except Exception:
+        HuggingFaceEmbeddings = None
 
 
 # --------------------------------------------------------------------------- #
@@ -84,6 +97,77 @@ def _create_vllm_chat(model: str, *, temperature: float) -> BaseChatModel:
         )
     # The OpenAI-compatible base URL must be set via environment variables.
     return ChatOpenAI(model=model, temperature=temperature)
+
+
+# --------------------------------------------------------------------------- #
+# Embedding model factories
+# --------------------------------------------------------------------------- #
+
+
+def _create_openai_embeddings(model: str = "text-embedding-3-large") -> Any:
+    if OpenAIEmbeddings is None:
+        raise RuntimeError(
+            "OpenAIEmbeddings is not available. Install `langchain-openai` to use the OpenAI embedding backend."
+        )
+    return OpenAIEmbeddings(model=model)
+
+
+def _create_bedrock_embeddings(
+    model_id: str = "amazon.titan-embed-text-v1",
+) -> Any:
+    if BedrockEmbeddings is None:
+        raise RuntimeError(
+            "BedrockEmbeddings is not available. Install `langchain-aws` to use the Bedrock embedding backend."
+        )
+    return BedrockEmbeddings(model_id=model_id)
+
+
+def _create_vertex_embeddings(
+    model_name: str = "textembedding-gecko",
+) -> Any:
+    if VertexAIEmbeddings is None:
+        raise RuntimeError(
+            "VertexAIEmbeddings is not available. Install `langchain-google-vertexai` to use the Vertex embedding backend."
+        )
+    return VertexAIEmbeddings(model_name=model_name)
+
+
+def _create_huggingface_embeddings(
+    model_name: str = "sentence-transformers/all-mpnet-base-v2",
+) -> Any:
+    if HuggingFaceEmbeddings is None:
+        raise RuntimeError(
+            "HuggingFaceEmbeddings is not available. Install `langchain-huggingface` (and `sentence-transformers`) to use the HuggingFace embedding backend."
+        )
+    return HuggingFaceEmbeddings(model_name=model_name)
+
+
+def get_comment_embedding_model(settings: Settings | None = None) -> Any:
+    """
+    Return an embedding model used for comment RAG.
+
+    For now we use one embedding model per backend; adjust as needed.
+    """
+    if settings is None:
+        settings = get_settings()
+    
+    # Use embedding_backend if set, otherwise fallback to llm_backend
+    backend = settings.embedding_backend or settings.llm_backend
+
+    if backend in ("openai", "vllm"):
+        # vLLM usually exposes an OpenAI-compatible endpoint; we reuse OpenAIEmbeddings.
+        return _create_openai_embeddings(model="text-embedding-3-large")
+
+    if backend == "bedrock":
+        return _create_bedrock_embeddings(model_id="amazon.titan-embed-text-v1")
+
+    if backend == "vertex":
+        return _create_vertex_embeddings(model_name="textembedding-gecko")
+
+    if backend == "huggingface":
+        return _create_huggingface_embeddings()
+
+    raise ValueError(f"Unsupported backend for embeddings: {backend}")
 
 
 # --------------------------------------------------------------------------- #

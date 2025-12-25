@@ -32,7 +32,7 @@ async def upsert_chat_embedding(
     query = text(
         """
         INSERT INTO chat_embeddings (session_id, message_id, embedding, metadata)
-        VALUES (:session_id, :message_id, :embedding, :metadata)
+        VALUES (:session_id, :message_id, (:embedding)::vector, :metadata)
         ON CONFLICT (session_id, message_id)
         DO UPDATE SET
           embedding = EXCLUDED.embedding,
@@ -45,8 +45,8 @@ async def upsert_chat_embedding(
         {
             "session_id": session_id,
             "message_id": message_id,
-            # pgvector adapters typically accept Python lists for vector columns
-            "embedding": list(embedding),
+            # Pass as string '[0.1, 0.2, ...]' to avoid asyncpg array type confusion
+            "embedding": str(list(embedding)),
             "metadata": metadata,
         },
     )
@@ -74,13 +74,13 @@ async def search_chat_embeddings(
             message_id,
             embedding,
             metadata,
-            embedding <-> :embedding AS distance
+            embedding <-> (:embedding)::vector AS distance
         FROM chat_embeddings
     """
 
     where_clause = ""
     params: Dict[str, Any] = {
-        "embedding": list(embedding),
+        "embedding": str(list(embedding)),
         "limit": limit,
     }
 
@@ -96,7 +96,9 @@ async def search_chat_embeddings(
         LIMIT :limit
         """
     )
-
+    print("LOG: Running Vector Chat Search:", query)
+    print("LOG: Chat Params:", params)
+    
     result = await session.execute(query, params)
     rows = result.mappings().all()
     return [dict(row) for row in rows]
@@ -124,7 +126,7 @@ async def upsert_comment_embedding(
     query = text(
         """
         INSERT INTO comment_embeddings (comment_id, embedding, metadata)
-        VALUES (:comment_id, :embedding, :metadata)
+        VALUES (:comment_id, (:embedding)::vector, :metadata)
         ON CONFLICT (comment_id)
         DO UPDATE SET
           embedding = EXCLUDED.embedding,
@@ -136,7 +138,7 @@ async def upsert_comment_embedding(
         query,
         {
             "comment_id": comment_id,
-            "embedding": list(embedding),
+            "embedding": str(list(embedding)),
             "metadata": metadata,
         },
     )
@@ -160,19 +162,23 @@ async def search_comment_embeddings(
             comment_id,
             embedding,
             metadata,
-            embedding <-> :embedding AS distance
+            metadata,
+            embedding <-> (:embedding)::vector AS distance
         FROM comment_embeddings
         ORDER BY distance ASC
         LIMIT :limit
         """
     )
 
+    print("LOG: Running Vector Comment Search:", query)
+
     result = await session.execute(
         query,
         {
-            "embedding": list(embedding),
+            "embedding": str(list(embedding)),
             "limit": limit,
         },
     )
     rows = result.mappings().all()
+    print("LOG: Vector Comment Search Results:", rows) 
     return [dict(row) for row in rows]

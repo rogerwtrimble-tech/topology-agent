@@ -96,6 +96,9 @@ class TopologyResponse(BaseModel):
     circuits: List[Dict[str, Any]] = Field(
         default_factory=list, description="Enriched circuit objects for tabular UI."
     )
+    comments: List[Dict[str, Any]] = Field(
+        default_factory=list, description="Relevant comments fetched via RAG."
+    )
     warnings: List[str] = Field(
         default_factory=list,
         description="Non-fatal issues or degradation notices.",
@@ -189,6 +192,7 @@ async def topology_query(
     ] if ui_payload.get("paths") else []
 
     circuits = ui_payload.get("circuits", []) or []
+    comments = ui_payload.get("comments", []) or []
     warnings = ui_payload.get("warnings", []) or []
     partial = bool(ui_payload.get("partial") or result_state.get("partial"))
 
@@ -199,6 +203,7 @@ async def topology_query(
         summary=summary,
         paths=paths,
         circuits=circuits,
+        comments=comments,
         warnings=warnings,
         partial=partial,
         raw_state=ui_payload.get("debug_state"),

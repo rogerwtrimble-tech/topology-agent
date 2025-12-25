@@ -81,6 +81,12 @@ class Settings(BaseSettings):
         description="Whether to use encrypted connection to graph DB.",
     )
 
+    # RAG / comment search
+    comment_rag_top_k: int = Field(
+        5,
+        description="Number of top similar comments to retrieve from pgvector.",
+    )
+
     # Cache / Redis
     redis_url: str | None = Field(
         default=None,
@@ -90,7 +96,11 @@ class Settings(BaseSettings):
     # LLM backend selection
     llm_backend: Literal["bedrock", "vertex", "openai", "vllm"] = Field(
         "bedrock",
-        description="Default LLM backend to use.",
+        description="Default LLM backend to use for Chat models.",
+    )
+    embedding_backend: Literal["bedrock", "vertex", "openai", "vllm", "huggingface"] | None = Field(
+        default=None,
+        description="Backend for embeddings. If None, uses llm_backend.",
     )
 
     # Optional: LangSmith

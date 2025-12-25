@@ -38,4 +38,6 @@ async def tool_node(state: TopologyState) -> TopologyState:
     # Hierarchy
     state["hierarchy_data"] = await run_hierarchy_tool(state)
 
+    print("DEBUG: state comment_data ", state["comment_data"])
+    
     return state
