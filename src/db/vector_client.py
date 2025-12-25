@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, List, Sequence
 
 from sqlalchemy import text
@@ -32,7 +33,7 @@ async def upsert_chat_embedding(
     query = text(
         """
         INSERT INTO chat_embeddings (session_id, message_id, embedding, metadata)
-        VALUES (:session_id, :message_id, (:embedding)::vector, :metadata)
+        VALUES (:session_id, :message_id, (:embedding)::vector, (:metadata)::jsonb)
         ON CONFLICT (session_id, message_id)
         DO UPDATE SET
           embedding = EXCLUDED.embedding,
@@ -47,7 +48,7 @@ async def upsert_chat_embedding(
             "message_id": message_id,
             # Pass as string '[0.1, 0.2, ...]' to avoid asyncpg array type confusion
             "embedding": str(list(embedding)),
-            "metadata": metadata,
+            "metadata": json.dumps(metadata),
         },
     )
     await session.commit()
@@ -126,7 +127,7 @@ async def upsert_comment_embedding(
     query = text(
         """
         INSERT INTO comment_embeddings (comment_id, embedding, metadata)
-        VALUES (:comment_id, (:embedding)::vector, :metadata)
+        VALUES (:comment_id, (:embedding)::vector, (:metadata)::jsonb)
         ON CONFLICT (comment_id)
         DO UPDATE SET
           embedding = EXCLUDED.embedding,
@@ -139,7 +140,7 @@ async def upsert_comment_embedding(
         {
             "comment_id": comment_id,
             "embedding": str(list(embedding)),
-            "metadata": metadata,
+            "metadata": json.dumps(metadata),
         },
     )
     await session.commit()

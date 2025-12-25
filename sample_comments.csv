@@ -1,0 +1,5 @@
+id,text,ticket_id,author
+CMT-101,"Site A router overheating repeatedly since Monday","TKT-201","alice@example.com"
+CMT-102,"Fiber cut on the north span between Dallas and Houston","TKT-202","bob@example.com"
+CMT-103,"Optical levels fluctuating on circuit CIR-A-B-1","TKT-203","charlie@example.com"
+CMT-104,"Scheduled maintenance for Austin POP next Tuesday","CHANGE-301","dave@example.com"
