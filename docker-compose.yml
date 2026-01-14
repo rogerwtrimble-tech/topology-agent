@@ -1,0 +1,57 @@
+services:
+  topology-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: topology-agent
+    # env_file allows you to pass your .env file for configuration
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    networks:
+      - monitoring
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  prometheus:
+    image: prom/prometheus:v2.47.2
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    build:
+      context: .
+      dockerfile: ./grafana/Dockerfile
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana # Persists Grafana data
+    env_file:
+      - .env
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    networks:
+      - monitoring
+
+volumes:
+  grafana-data:
+
+
+networks:
+  monitoring:
+    driver: bridge

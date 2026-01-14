@@ -11,9 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
 from .config import get_settings
-from .dependencies import close_resources, init_resources, get_logger
+from .dependencies import close_resources, get_logger, init_resources
+from .metrics import metrics_app
 from .api import chat, metrics, system, topology
-from .api.http_metrics import API_REQUESTS, API_REQUEST_DURATION
 
 
 @asynccontextmanager
@@ -80,56 +80,15 @@ def create_app() -> FastAPI:
         response.headers["X-Request-ID"] = request_id
         return response
 
-    # ------------------------------------------------------------------ #
-    # HTTP metrics middleware (per-route Prometheus metrics)
-    # ------------------------------------------------------------------ #
-    @app.middleware("http")
-    async def http_metrics_middleware(request: Request, call_next):
-        """
-        Middleware to record per-route HTTP metrics for Prometheus.
-
-        Exposes:
-          - topology_api_requests_total{path,method,status}
-          - topology_api_request_duration_seconds{path,method}
-        """
-
-        start = time.perf_counter()
-        path = request.url.path
-        method = request.method.upper()
-        status_code: int | None = None
-
-        try:
-            response = await call_next(request)
-            status_code = response.status_code
-            return response
-        except Exception:
-            # Treat unhandled exceptions as HTTP 500 for metrics purposes.
-            status_code = 500
-            raise
-        finally:
-            status_str = str(status_code) if status_code is not None else "unknown"
-            duration = time.perf_counter() - start
-
-            # Increment request counter
-            API_REQUESTS.labels(
-                path=path,
-                method=method,
-                status=status_str,
-            ).inc()
-
-            # Observe latency
-            API_REQUEST_DURATION.labels(
-                path=path,
-                method=method,
-            ).observe(duration)
-
     # Router registration
     api_prefix = settings.api_prefix.rstrip("/")
 
     app.include_router(system.router, prefix=api_prefix)
-    app.include_router(metrics.router, prefix=api_prefix)
     app.include_router(chat.router, prefix=api_prefix)
     app.include_router(topology.router, prefix=api_prefix)
+
+    # Mount the separate metrics app for multi-process mode
+    app.mount("/metrics", metrics_app)
 
     return app
 
