@@ -39,8 +39,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=__version__,
-        docs_url=f"{settings.api_prefix.rstrip('/')}/docs",
-        openapi_url=f"{settings.api_prefix.rstrip('/')}/openapi.json",
+        docs_url="/docs",  # Explicitly set docs at root
+        openapi_url="/openapi.json", # Explicitly set openapi at root
         lifespan=lifespan,
     )
 

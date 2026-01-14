@@ -1,9 +1,6 @@
--- This script sets up the database schema for the topology agent,
--- including tables for network inventory and vector embeddings.
+SELECT id, src_site, dst_site, layer, status, metadata
+FROM public.inventory_circuits;
 
--- Define custom types for better data integrity
-CREATE TYPE circuit_layer AS ENUM ('L1', 'L2', 'L3', 'OTS');
-CREATE TYPE circuit_status AS ENUM ('up', 'down', 'maintenance', 'planned');
 
 CREATE TABLE IF NOT EXISTS inventory_sites (
     id       TEXT PRIMARY KEY,
@@ -15,9 +12,9 @@ CREATE TABLE IF NOT EXISTS inventory_sites (
 CREATE TABLE IF NOT EXISTS inventory_circuits (
     id         TEXT PRIMARY KEY,
     src_site   TEXT NOT NULL REFERENCES inventory_sites(id) ON DELETE RESTRICT,
-    dst_site   TEXT NOT NULL REFERENCES inventory_sites(id) ON DELETE RESTRICT, CHECK (src_site <> dst_site),
-    layer      circuit_layer NOT NULL,
-    status     circuit_status NOT NULL,
+    dst_site   TEXT NOT NULL REFERENCES inventory_sites(id) ON DELETE RESTRICT,
+    layer      TEXT NOT NULL,
+    status     TEXT NOT NULL,
     metadata   JSONB NOT NULL DEFAULT '{}'::jsonb
 );
 
@@ -36,13 +33,15 @@ INSERT INTO inventory_sites (id, name, region, metadata) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO inventory_circuits (id, src_site, dst_site, layer, status, metadata) VALUES
-  ('CIR-A-B-1', 'A', 'B', 'L2', 'up', '{"bandwidth": "10G", "provider": "Internal"}'),
-  ('CIR-B-C-1', 'B', 'C', 'L2', 'up', '{"bandwidth": "10G"}'),
-  ('CIR-C-D-1', 'C', 'D', 'L2', 'up', '{"bandwidth": "10G"}'),
-  ('CIR-D-E-1', 'D', 'E', 'L2', 'up', '{"bandwidth": "10G"}'),
-  ('CIR-A-D-1', 'A', 'D', 'L2', 'up', '{"bandwidth": "40G", "role": "backbone"}'),
+  ('CIR-A-B-1', 'A', 'B', 'L2', 'up',   '{"bandwidth": "10G", "provider": "Internal"}'),
+  ('CIR-B-C-1', 'B', 'C', 'L2', 'up',   '{"bandwidth": "10G"}'),
+  ('CIR-C-D-1', 'C', 'D', 'L2', 'up',   '{"bandwidth": "10G"}'),
+  ('CIR-D-E-1', 'D', 'E', 'L2', 'up',   '{"bandwidth": "10G"}'),
+  ('CIR-A-D-1', 'A', 'D', 'L2', 'up',   '{"bandwidth": "40G", "role": "backbone"}'),
   ('CIR-A-B-L3-1', 'A', 'B', 'L3', 'up', '{"bandwidth": "1G"}')
 ON CONFLICT (id) DO NOTHING;
+
+select * from inventory_sites;
 
 
 -- Check to see if pgvector is available
@@ -71,7 +70,9 @@ CREATE INDEX IF NOT EXISTS idx_comment_embeddings_embedding
 INSERT INTO comment_embeddings (comment_id, embedding, metadata) VALUES
   (
     'CMT-1',
-    zeros(768),
+    ARRAY_FILL(0::real, ARRAY[768])::vector,
     '{"text": "Fiber cut reported between A and D last week", "ticket_id": "TKT-123"}'
   )
 ON CONFLICT (comment_id) DO NOTHING;
+
+select * from comment_embeddings;
