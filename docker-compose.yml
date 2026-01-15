@@ -68,10 +68,17 @@ services:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana # Persists Grafana data
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/provisioning/dashboards:/var/lib/grafana/dashboards:ro
+      - ./dashboards.yml:/app/dashboards.yml:ro
+      - ./scripts/grafana-init.sh:/init-grafana.sh:ro
     env_file:
       - .env
     networks:
       - monitoring
+    # Run init script inside container before starting Grafana
+    entrypoint: ""
+    command: sh -c "sh /init-grafana.sh && /run.sh"
 
   ollama:
     build:
@@ -99,10 +106,57 @@ services:
     # Explicitly set a public DNS server to resolve external domains
     dns: 8.8.8.8
 
+  neo4j:
+    image: neo4j:5
+    container_name: neo4j
+    # remove env_file to avoid injecting unrelated vars (like URI) into neo4j.conf
+    environment:
+      - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["apoc"]                       # renamed from NEO4JLABS_PLUGINS
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_directories_import=/var/lib/neo4j/import
+      # optionally accept license if required by some plugins
+      # - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+    ports:
+      - "7474:7474" # HTTP
+      - "7687:7687" # Bolt
+    volumes:
+      - neo4j-data:/data
+      - ./scripts:/var/lib/neo4j/import
+    networks:
+      - monitoring
+    healthcheck:
+      test: [ "CMD-SHELL", "cypher-shell -u $${NEO4J_USERNAME} -p $${NEO4J_PASSWORD} -a bolt://localhost:7687 'RETURN 1' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  neo4j-init:
+    image: neo4j:5
+    container_name: neo4j-init
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command: |
+      until cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 "RETURN 1" >/dev/null 2>&1; do
+        sleep 1
+      done
+      echo "Running initial cypher import..."
+      cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 < /var/lib/neo4j/import/init.cypher || true
+      echo "Loading JSON dataset via APOC..."
+      cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 < /var/lib/neo4j/import/neo4j-load.cypher || true
+      echo "neo4j init complete"
+    volumes:
+      - ./scripts:/var/lib/neo4j/import
+    networks:
+      - monitoring
+
 volumes:
   grafana-data:
   postgres-data:
   ollama-data:
+  neo4j-data:
 
 
 networks:
