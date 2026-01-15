@@ -134,8 +134,23 @@ class Settings(BaseSettings):
         description="Number of CPU threads to use for llama.cpp.",
     )
 
-
-    # Optional: LangSmith
+    # Model names for each backend
+    planner_model_name: str = Field(
+        default="phi3:mini",
+        description="Model name for planner agent (chat).",
+    )
+    validator_model_name: str = Field(
+        default="phi3:mini",
+        description="Model name for validator agent (LLM-as-judge).",
+    )
+    response_model_name: str = Field(
+        default="phi3:mini",
+        description="Model name for response polishing agent.",
+    )
+    embedding_model_name: str = Field(
+        default="nomic-embed-text",
+        description="Model name for embeddings (comment RAG).",
+    )
     langsmith_api_key: str | None = Field(
         default=None,
         validation_alias=AliasChoices("TOPOLOGY_AGENT_LANGSMITH_API_KEY", "LANGSMITH_API_KEY", "LANGCHAIN_API_KEY"),

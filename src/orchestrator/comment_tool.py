@@ -1,14 +1,44 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .state_types import TopologyState
 from ..config import get_settings
 from ..dependencies import get_session_maker
 from ..db import vector_client
-from ..llm.llm_factory import get_comment_embedding_model
+
+
+async def _get_embedding_from_ollama(text: str, model: str, api_base: str) -> List[float]:
+    """
+    Get embedding from Ollama using direct HTTP API call.
+    
+    This avoids the LangChain OpenAI wrapper which tokenizes the input,
+    causing 'invalid input type' errors with Ollama's embedding endpoint.
+    """
+    url = f"{api_base}/embeddings"
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            url,
+            json={
+                "model": model,
+                "input": text,  # Raw text string, not tokens
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract embedding from response
+        if "data" in data and len(data["data"]) > 0:
+            return data["data"][0]["embedding"]
+        elif "embedding" in data:
+            return data["embedding"]
+        else:
+            raise ValueError(f"Unexpected embedding response format: {data}")
 
 
 async def run_comment_tool(state: TopologyState) -> Dict[str, Any]:
@@ -53,16 +83,24 @@ async def run_comment_tool(state: TopologyState) -> Dict[str, Any]:
 
     # --- 2) Embed the query ----------------------------------------------
 
-    embed_model = get_comment_embedding_model(settings)
-    
-    # print(f"DEBUG: comment_tool embedding text='{search_text}' with model={type(embed_model)}")
-    
-    # LangChain embeddings are typically synchronous; we call them directly.
-    # In a highly concurrent environment you may want to offload this to a
-    # thread pool or a worker.
-    embedding: List[float] = embed_model.embed_query(search_text)
-    
-    # print(f"DEBUG: comment_tool generated embedding len={len(embedding)}")
+    api_base = os.getenv("OPENAI_API_BASE", "http://localhost:11434/v1")
+    embedding_model = settings.embedding_model_name
+
+    try:
+        embedding: List[float] = await _get_embedding_from_ollama(
+            text=search_text,
+            model=embedding_model,
+            api_base=api_base,
+        )
+    except Exception as exc:
+        print(f"DEBUG: comment_tool embedding failed: {exc}")
+        return {
+            "comments": [],
+            "metadata": {
+                "source": "comment_tool",
+                "reason": f"embedding_failed: {exc}",
+            },
+        }
 
     # --- 3) Search pgvector ----------------------------------------------
 

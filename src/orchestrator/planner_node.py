@@ -175,13 +175,13 @@ async def planner_node(state: TopologyState) -> TopologyState:
             raw_text = str(result)
 
         state["plan_raw"] = raw_text
+        state["planning_error"] = ""  # Clear any previous error
 
         plan = _parse_plan_from_llm_output(raw_text, state)
         state["plan"] = plan
 
         print("DEBUG: state plan ", state["plan"])  
         print("DEBUG: state plan_raw ", state["plan_raw"])  
-        print("DEBUG: state planning_error ", state["planning_error"])  
     
         NODE_INVOCATIONS.labels(node=node_name, status="ok").inc()        
         

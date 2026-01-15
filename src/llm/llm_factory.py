@@ -193,7 +193,7 @@ def get_comment_embedding_model(settings: Settings | None = None) -> Any:
 
     if backend in ("openai", "vllm"):
         # vLLM usually exposes an OpenAI-compatible endpoint; we reuse OpenAIEmbeddings.
-        return _create_openai_embeddings(model="text-embedding-3-large")
+        return _create_openai_embeddings(model=settings.embedding_model_name)
 
     if backend == "bedrock":
         return _create_bedrock_embeddings(model_id="amazon.titan-embed-text-v1")
@@ -230,7 +230,7 @@ def get_planner_model(settings: Settings | None = None) -> BaseChatModel:
 
     if backend == "openai":
         # Adjust model name to your needs
-        return _create_openai_chat(model="gpt-4o", temperature=0.2)
+        return _create_openai_chat(model=settings.planner_model_name, temperature=0.2)
     if backend == "bedrock":
         # Example Claude Sonnet on Bedrock; replace with your chosen model
         return _create_bedrock_chat(
@@ -245,7 +245,7 @@ def get_planner_model(settings: Settings | None = None) -> BaseChatModel:
         )
     if backend == "vllm":
         # Example local vLLM model name
-        return _create_vllm_chat(model="local-gpt-4o-equivalent", temperature=0.2)
+        return _create_vllm_chat(model=settings.planner_model_name, temperature=0.2)
 
     if backend == "llamacpp":
         # Mistral-7B-Instruct via llama.cpp
@@ -265,7 +265,7 @@ def get_validator_model(settings: Settings | None = None) -> BaseChatModel:
     backend = _get_backend(settings)
 
     if backend == "openai":
-        return _create_openai_chat(model="gpt-4o-mini", temperature=0.0)
+        return _create_openai_chat(model=settings.validator_model_name, temperature=0.0)
     if backend == "bedrock":
         return _create_bedrock_chat(
             model_id="anthropic.claude-3-haiku-20240307-v1:0",
@@ -277,7 +277,7 @@ def get_validator_model(settings: Settings | None = None) -> BaseChatModel:
             temperature=0.0,
         )
     if backend == "vllm":
-        return _create_vllm_chat(model="local-judge-model", temperature=0.0)
+        return _create_vllm_chat(model=settings.validator_model_name, temperature=0.0)
 
     if backend == "llamacpp":
         return _create_llamacpp_chat(settings, temperature=0.0)
@@ -296,7 +296,7 @@ def get_response_model(settings: Settings | None = None) -> BaseChatModel:
     backend = _get_backend(settings)
 
     if backend == "openai":
-        return _create_openai_chat(model="gpt-4o-mini", temperature=0.3)
+        return _create_openai_chat(model=settings.response_model_name, temperature=0.3)
     if backend == "bedrock":
         return _create_bedrock_chat(
             model_id="anthropic.claude-3-haiku-20240307-v1:0",
@@ -308,7 +308,7 @@ def get_response_model(settings: Settings | None = None) -> BaseChatModel:
             temperature=0.3,
         )
     if backend == "vllm":
-        return _create_vllm_chat(model="local-response-model", temperature=0.3)
+        return _create_vllm_chat(model=settings.response_model_name, temperature=0.3)
 
     if backend == "llamacpp":
         return _create_llamacpp_chat(settings, temperature=0.3)
