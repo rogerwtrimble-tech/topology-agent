@@ -1,0 +1,7 @@
+FROM pgvector/pgvector:pg16
+
+# Copy initialization scripts
+COPY scripts/dbscripts.sql /docker-entrypoint-initdb.d/init.sql
+
+# Ensure permissions are correct
+RUN chmod 644 /docker-entrypoint-initdb.d/init.sql

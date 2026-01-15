@@ -1,9 +1,11 @@
 services:
   topology-agent:
     depends_on:
-      postgres17.7:
+      postgres16:
         condition: service_healthy
       ollama:
+        condition: service_healthy
+      neo4j:
         condition: service_healthy
     build:
       context: .
@@ -17,7 +19,8 @@ services:
       - OPENAI_API_BASE=http://ollama:11434/v1
     ports:
       - "8000:8000"
-    networks: # Make network definition more explicit
+    networks:
+      # Make network definition more explicit
       monitoring: {}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
@@ -26,9 +29,11 @@ services:
       retries: 5
       start_period: 60s
 
-  postgres17.7:
-    image: pgvector/pgvector:pg16 # Use pgvector image based on PostgreSQL 16
-    container_name: postgres17.7
+  postgres16:
+    build:
+      context: .
+      dockerfile: PostgresDockerfile
+    container_name: postgres16
     env_file:
       - .env
     environment:
@@ -38,7 +43,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql # Mount parent directory for version-aware data storage
+      - postgres-data:/var/lib/postgresql/data
     networks:
       - monitoring
     healthcheck:
@@ -90,7 +95,8 @@ services:
     volumes:
       - ollama-data:/root/.ollama
       - ./scripts/ollama-init.sh:/init.sh
-    networks: # Make network definition more explicit
+    networks:
+      # Make network definition more explicit
       monitoring: {}
     # Override the default entrypoint to run our shell command directly
     entrypoint: ""
@@ -112,11 +118,11 @@ services:
     # remove env_file to avoid injecting unrelated vars (like URI) into neo4j.conf
     environment:
       - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
-      - NEO4J_PLUGINS=["apoc"]                       # renamed from NEO4JLABS_PLUGINS
+      - NEO4J_PLUGINS=["apoc"] # renamed from NEO4JLABS_PLUGINS
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
       - NEO4J_dbms_directories_import=/var/lib/neo4j/import
       # optionally accept license if required by some plugins
-      # - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
     ports:
       - "7474:7474" # HTTP
       - "7687:7687" # Bolt
@@ -126,7 +132,7 @@ services:
     networks:
       - monitoring
     healthcheck:
-      test: [ "CMD-SHELL", "cypher-shell -u $${NEO4J_USERNAME} -p $${NEO4J_PASSWORD} -a bolt://localhost:7687 'RETURN 1' || exit 1" ]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -137,7 +143,7 @@ services:
     depends_on:
       neo4j:
         condition: service_healthy
-    entrypoint: ["/bin/bash", "-c"]
+    entrypoint: [ "/bin/bash", "-c" ]
     command: |
       until cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 "RETURN 1" >/dev/null 2>&1; do
         sleep 1

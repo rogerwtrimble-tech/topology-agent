@@ -1,5 +1,4 @@
-SELECT id, src_site, dst_site, layer, status, metadata
-FROM public.inventory_circuits;
+
 
 
 CREATE TABLE IF NOT EXISTS inventory_sites (
