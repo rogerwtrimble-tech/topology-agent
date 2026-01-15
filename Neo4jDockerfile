@@ -1,0 +1,18 @@
+FROM neo4j:5
+
+# Install necessary plugins or configurations (if any)
+# For example, we might ensure APOC is ready if not using the env var method,
+# but the standard way is fine. This Dockerfile is mainly to bundle the scripts.
+
+# Copy initialization scripts into the import directory so they are always available locally
+# COPY scripts/neo4j-init.cypher /var/lib/neo4j/import/init.cypher  <-- Removed
+COPY scripts/neo4j-load.cypher /var/lib/neo4j/import/neo4j-load.cypher
+COPY scripts/neo4j_query_table_data_2025-12-28.json /var/lib/neo4j/import/neo4j_query_table_data_2025-12-28.json
+
+# Custom wrapper script to run Neo4j in background, wait for it, run import, then keep running
+COPY scripts/neo4j-wrapper.sh /neo4j-wrapper.sh
+RUN chmod +x /neo4j-wrapper.sh
+
+# Use our wrapper as the entrypoint
+ENTRYPOINT ["/neo4j-wrapper.sh"]
+CMD ["neo4j"]

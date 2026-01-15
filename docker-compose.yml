@@ -113,12 +113,16 @@ services:
     dns: 8.8.8.8
 
   neo4j:
-    image: neo4j:5
+    build:
+      context: .
+      dockerfile: Neo4jDockerfile
     container_name: neo4j
     # remove env_file to avoid injecting unrelated vars (like URI) into neo4j.conf
     environment:
       - NEO4J_AUTH=${NEO4J_USERNAME}/${NEO4J_PASSWORD}
-      - NEO4J_PLUGINS=["apoc"] # renamed from NEO4JLABS_PLUGINS
+      - WRAPPER_USER=${NEO4J_USERNAME} # Safe name ignored by Neo4j config
+      - WRAPPER_PASS=${NEO4J_PASSWORD} # Safe name ignored by Neo4j config
+      - NEO4J_PLUGINS=["apoc"]
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
       - NEO4J_dbms_directories_import=/var/lib/neo4j/import
       # optionally accept license if required by some plugins
@@ -128,7 +132,6 @@ services:
       - "7687:7687" # Bolt
     volumes:
       - neo4j-data:/data
-      - ./scripts:/var/lib/neo4j/import
     networks:
       - monitoring
     healthcheck:
@@ -136,27 +139,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
-  neo4j-init:
-    image: neo4j:5
-    container_name: neo4j-init
-    depends_on:
-      neo4j:
-        condition: service_healthy
-    entrypoint: [ "/bin/bash", "-c" ]
-    command: |
-      until cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 "RETURN 1" >/dev/null 2>&1; do
-        sleep 1
-      done
-      echo "Running initial cypher import..."
-      cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 < /var/lib/neo4j/import/init.cypher || true
-      echo "Loading JSON dataset via APOC..."
-      cypher-shell -u ${NEO4J_USERNAME} -p ${NEO4J_PASSWORD} -a bolt://neo4j:7687 < /var/lib/neo4j/import/neo4j-load.cypher || true
-      echo "neo4j init complete"
-    volumes:
-      - ./scripts:/var/lib/neo4j/import
-    networks:
-      - monitoring
 
 volumes:
   grafana-data:

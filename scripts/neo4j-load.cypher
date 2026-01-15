@@ -6,6 +6,7 @@ MERGE (s:Site {id: p.start.properties.id})
 SET s += p.start.properties
 MERGE (e:Site {id: p.end.properties.id})
 SET e += p.end.properties
+WITH p
 UNWIND p.segments AS seg
 MERGE (a:Site {id: seg.start.properties.id})
 SET a += seg.start.properties
