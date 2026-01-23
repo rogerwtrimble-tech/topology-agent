@@ -16,7 +16,7 @@ done
 echo "Ollama is ready. Pulling required models..."
 
 # Pull models to pull
-MODELS=("phi3:mini" "nomic-embed-text" "llama3.2:3b" "medllama3:8b")
+MODELS=("phi3:mini" "nomic-embed-text" "llama3.2:3b" "thewindmom/llama3-med42-8b")
 
 for MODEL in "${MODELS[@]}"; do
     echo "Processing model: $MODEL..."
