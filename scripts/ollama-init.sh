@@ -15,19 +15,22 @@ while ! curl -s -o /dev/null http://localhost:11434; do
 done
 echo "Ollama is ready. Pulling required models..."
 
-# Pull chat model
-echo "Pulling phi3:mini..."
-if ! timeout 300 ollama pull phi3:mini; then
-  echo "Failed to pull phi3:mini"
-  exit 1
-fi
+# Pull models to pull
+MODELS=("phi3:mini" "nomic-embed-text" "llama3.2:3b" "medllama3:8b")
 
-# Pull embedding model
-echo "Pulling nomic-embed-text..."
-if ! timeout 300 ollama pull nomic-embed-text; then
-  echo "Failed to pull nomic-embed-text"
-  exit 1
-fi
+for MODEL in "${MODELS[@]}"; do
+    echo "Processing model: $MODEL..."
+    # Check if model already exists to save time/bandwidth
+    if ollama list | grep -q "$MODEL"; then
+        echo "$MODEL already exists, skipping pull."
+    else
+        echo "Pulling $MODEL..."
+        if ! timeout 600 ollama pull "$MODEL"; then
+            echo "Failed to pull $MODEL"
+            exit 1
+        fi
+    fi
+done
 
 echo "All models pulled successfully."
 exit 0
